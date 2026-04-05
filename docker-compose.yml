@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cashflow-postgres
+    environment:
+      POSTGRES_DB: cashflow
+      POSTGRES_USER: cashflow
+      POSTGRES_PASSWORD: cashflow_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cashflow -d cashflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cashflow-backend
+    ports:
+      - "8090:8060"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/cashflow
+      DB_USERNAME: cashflow
+      DB_PASSWORD: cashflow_password
+      CASHFLOW_DEMO_ENABLED: "true"
+      CASHFLOW_DEMO_SEED_ON_STARTUP: "true"
+      CASHFLOW_DEMO_PRESENTATION_MODE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cashflow-frontend
+    ports:
+      - "3040:3030"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

@@ -1,0 +1,68 @@
+# Maven / Java
+target/
+build/
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+replay_pid*
+pom.xml.tag
+pom.xml.releaseBackup
+release.properties
+dependency-reduced-pom.xml
+.flattened-pom.xml
+*.hprof
+
+# IDE
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+.factorypath
+.vscode/*
+!.vscode/extensions.json
+.cursor/plans/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo
+*.bak
+*.orig
+
+# Logs & secrets
+*.log
+logs/
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Spring Boot — локальные профили и секреты (не коммитить)
+**/application-local.yaml
+**/application-local.yml
+**/application-secret.yaml
+**/application-secret.yml
+**/application-secrets.yaml
+**/application-secrets.yml
+
+# Frontend (monorepo)
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+frontend/*.local
+*.tsbuildinfo
+.eslintcache
+frontend/coverage/
+
+# Test / tooling
+.testcontainers/
+coverage/
+.nyc_output/
+.claude/
