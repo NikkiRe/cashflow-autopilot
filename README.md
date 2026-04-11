@@ -1,4 +1,4 @@
-![2026-04-1200 59 22-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/0166ff6c-5db3-4f72-a6bb-49d3a83fad02)
+![2026-04-1200 59 22-ezgif com-video-to-gif-converter-2](https://github.com/user-attachments/assets/7a9cfa2f-5973-437d-b7e5-c431823b6ee6)
 
 <div align="center">
 
