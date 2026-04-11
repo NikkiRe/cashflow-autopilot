@@ -59,7 +59,6 @@ export function Dashboard() {
       setInvoices(invoicesData)
       setObligations(obligationsData)
     } catch (err) {
-      console.error('Backend unavailable, using demo data:', err)
       setIsDemoMode(true)
       setError('Backend unavailable — using demo data')
       setSummary({ cashNow: 125000, minCash: 89000, minCashDate: new Date(Date.now() + 45*86400000).toISOString().split('T')[0], runwayDays: 89 })
@@ -472,7 +471,6 @@ export function Dashboard() {
               setShowAddTransaction(false)
             }
           } catch (err) {
-            console.error('Failed to create transaction:', err)
             alert('Failed to create transaction. Please try again.')
           }
         }}

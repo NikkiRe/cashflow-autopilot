@@ -44,7 +44,6 @@ export function Invoices() {
       setInvoices(data)
     } catch (err) {
       setError('Failed to load invoices')
-      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -78,7 +77,6 @@ export function Invoices() {
       await loadInvoices()
     } catch (err) {
       setError('Failed to create invoice')
-      console.error(err)
     }
   }
 
@@ -90,7 +88,6 @@ export function Invoices() {
       await loadInvoices()
     } catch (err) {
       setError('Failed to delete invoice')
-      console.error(err)
       setDeleteId(null)
     }
   }

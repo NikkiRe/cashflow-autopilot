@@ -44,7 +44,6 @@ export function Obligations() {
       setObligations(data)
     } catch (err) {
       setError('Failed to load obligations')
-      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -78,7 +77,6 @@ export function Obligations() {
       await loadObligations()
     } catch (err) {
       setError('Failed to create obligation')
-      console.error(err)
     }
   }
 
@@ -90,7 +88,6 @@ export function Obligations() {
       await loadObligations()
     } catch (err) {
       setError('Failed to delete obligation')
-      console.error(err)
       setDeleteId(null)
     }
   }

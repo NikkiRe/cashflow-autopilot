@@ -4,7 +4,7 @@
 
 **Liquidity forecasting and cash visibility for finance and ops teams.**
 
-Daily cash balance projection, receivables, recurring obligations, and a focused UI for decisions — demo-ready with synthetic data, no payment rails.
+Daily cash balance projection, receivables, recurring obligations, and a focused UI built for decisions — demo-ready with synthetic data, no payment rails.
 
 [![Java](https://img.shields.io/badge/Java-21-orange?style=flat-square&logo=openjdk)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3-brightgreen?style=flat-square&logo=spring)](https://spring.io/projects/spring-boot)
@@ -17,14 +17,15 @@ Daily cash balance projection, receivables, recurring obligations, and a focused
 
 ---
 
-## Capabilities
+## Features
 
-- **Forecast** — daily projected balance from invoices, obligations, and ledger history
-- **Dashboard** — summary KPIs, chart, upcoming receivables and payables
-- **Invoices & obligations** — CRUD-style flows over REST
+- **Forecast** — daily projected balance derived from invoices, obligations, and ledger history
+- **Dashboard** — summary KPIs, 30-day chart, upcoming receivables and payables
+- **Invoices & obligations** — full CRUD over REST with status tracking
 - **Bank transactions** — list, create, delete
-- **Scenarios & factoring** — additional modelling screens (UI + API integration as implemented)
-- **Presentation mode** — optional banner and `/api/app/info` for demo disclaimers; seed dataset on empty DB
+- **Scenarios & factoring** — additional modelling screens
+- **Landing page** — scroll-driven marketing page at `/intro` with GSAP ScrollTrigger: sticky hero, card overlay, character reveal, neon chart split into 3D flip cards
+- **Demo mode** — synthetic seed dataset on empty DB; browser-only fallback when API is unreachable
 
 ---
 
@@ -34,14 +35,14 @@ Daily cash balance projection, receivables, recurring obligations, and a focused
 |----------|------------|
 | Backend  | Java 21, Spring Boot 3.3, Spring Data JPA, SpringDoc OpenAPI |
 | Database | PostgreSQL 16, Flyway |
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS, Recharts, Framer Motion |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, GSAP, Recharts, Radix UI |
 | Runtime  | Docker Compose, Nginx (static UI + `/api` proxy) |
 
 ---
 
-## Quick start (Docker)
+## Quick start
 
-**Requires:** Docker with Compose v2 (`docker compose`).
+**Requires:** Docker with Compose v2.
 
 ```bash
 git clone <repo-url>
@@ -51,37 +52,31 @@ docker compose up --build
 
 | Service | URL |
 |---------|-----|
-| Web UI | http://localhost:3040 |
+| Landing | http://localhost:3040/intro |
+| App | http://localhost:3040 |
 | API | http://localhost:8090/api |
-| OpenAPI (Swagger UI) | http://localhost:8090/swagger-ui.html |
-| PostgreSQL | `localhost:5432` · database `cashflow` · user `cashflow` |
+| Swagger UI | http://localhost:8090/swagger-ui.html |
+| PostgreSQL | `localhost:5432` · db `cashflow` · user `cashflow` |
 
-First full build may take a few minutes (Maven + npm in images). Later starts are faster.
+First build downloads Maven and npm dependencies — subsequent starts are fast.
 
-With an **empty** database and demo seed enabled, the app creates **Northwind Demo Ltd**, a USD operating account, sample invoices, obligations, and bank history. Figures are **simulated**.
-
-If the API is unreachable, the **Dashboard** can still run a **browser-only demo** fallback.
+On an empty database with demo seed enabled, the app creates **Northwind Demo Ltd** with a USD operating account, sample invoices, obligations, and transaction history. All figures are simulated.
 
 ---
 
 ## Local development
 
-### Database only (Docker)
+### Backend
+
+Requires **Java 21** and **Maven**.
 
 ```bash
 docker compose up postgres -d
-```
 
-### Backend
-
-Requires **Java 21** and **Maven** on the PATH (this repo does not ship `mvnw`).
-
-```bash
-# Set DB_URL / credentials to match your Postgres, or use defaults in application.yaml
 mvn -B spring-boot:run
+# API      → http://localhost:8060/api
+# Swagger  → http://localhost:8060/swagger-ui.html
 ```
-
-API: http://localhost:8060/api · Swagger: http://localhost:8060/swagger-ui.html
 
 ### Frontend
 
@@ -90,50 +85,36 @@ Requires **Node.js 20+**.
 ```bash
 cd frontend
 npm ci
-npm run dev
-```
-
-Dev server: http://localhost:3030 — Vite proxies `/api` to http://localhost:8060.
-
-Production build:
-
-```bash
-cd frontend
-npm ci
-npm run build
+npm run dev       # http://localhost:3030  (Vite proxies /api → :8060)
+npm run build     # production build
 ```
 
 ---
 
-## API overview
+## API reference
 
-Base path: `/api`. Shapes align with [`frontend/src/types/backend.ts`](frontend/src/types/backend.ts).
+Base path: `/api`. Request/response shapes are in [`frontend/src/types/backend.ts`](frontend/src/types/backend.ts).
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/app/info` | Demo / presentation flags |
 | GET | `/companies` | List companies |
-| GET | `/companies/{id}` | Company by id |
 | POST | `/companies` | Create company |
 | DELETE | `/companies/{id}` | Delete company |
-| GET | `/cash-accounts/company/{companyId}` | Cash accounts for company |
-| GET | `/cash-accounts/{id}` | Cash account by id |
-| POST | `/cash-accounts` | Create cash account |
-| DELETE | `/cash-accounts/{id}` | Delete cash account |
-| GET | `/invoices/cash-account/{cashAccountId}` | Invoices |
-| GET | `/invoices/{id}` | Invoice by id |
+| GET | `/cash-accounts/company/{companyId}` | Accounts for company |
+| POST | `/cash-accounts` | Create account |
+| DELETE | `/cash-accounts/{id}` | Delete account |
+| GET | `/invoices/cash-account/{id}` | Invoices |
 | POST | `/invoices` | Create invoice |
 | DELETE | `/invoices/{id}` | Delete invoice |
-| GET | `/obligations/cash-account/{cashAccountId}` | Obligations |
-| GET | `/obligations/{id}` | Obligation by id |
+| GET | `/obligations/cash-account/{id}` | Obligations |
 | POST | `/obligations` | Create obligation |
 | DELETE | `/obligations/{id}` | Delete obligation |
-| GET | `/bank-transactions/cash-account/{cashAccountId}` | Transactions |
-| GET | `/bank-transactions/{id}` | Transaction by id |
+| GET | `/bank-transactions/cash-account/{id}` | Transactions |
 | POST | `/bank-transactions` | Create transaction |
 | DELETE | `/bank-transactions/{id}` | Delete transaction |
-| GET | `/forecast` | Query: `cashAccountId`, `startDate`, `days` |
-| GET | `/dashboard/summary` | Same query params |
+| GET | `/forecast` | Params: `cashAccountId`, `startDate`, `days` |
+| GET | `/dashboard/summary` | Same params as forecast |
 
 ---
 
@@ -141,52 +122,38 @@ Base path: `/api`. Shapes align with [`frontend/src/types/backend.ts`](frontend/
 
 ```
 Backend_Project/
-├── src/main/java/com/cashflow/autopilot/   # controllers, services, repositories, domain, dto
+├── src/main/java/com/cashflow/autopilot/   # controllers, services, domain, dto
 ├── src/main/resources/
 │   ├── application.yaml
-│   └── db/migration/                       # Flyway
+│   └── db/migration/                       # Flyway migrations
 ├── src/test/                               # JUnit + Testcontainers
 ├── frontend/
-│   ├── src/                                # pages, components, contexts, lib, types
+│   ├── src/
+│   │   ├── pages/                          # Dashboard, Forecast, Invoices, LandingPage …
+│   │   ├── components/                     # layout + UI primitives
+│   │   ├── contexts/                       # AccountContext
+│   │   └── types/                          # backend.ts — shared DTO shapes
 │   ├── Dockerfile
 │   └── nginx.conf
-├── Dockerfile                              # Backend image
+├── Dockerfile
 ├── docker-compose.yml
-├── pom.xml
-└── .github/workflows/ci.yml                # Maven tests + frontend build
+└── pom.xml
 ```
 
 ---
 
 ## Configuration
 
-Docker Compose sets, among others:
-
 | Variable | Role |
 |----------|------|
-| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | JDBC |
-| `CASHFLOW_DEMO_*` | Demo flags (Spring relaxed binding) |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | JDBC connection |
+| `CASHFLOW_DEMO_ENABLED` | Master demo toggle |
+| `CASHFLOW_DEMO_SEED_ON_STARTUP` | Seed when no companies exist |
+| `CASHFLOW_DEMO_PRESENTATION_MODE` | UI banner + `/app/info` response |
+| `CASHFLOW_DEMO_DISCLAIMER` | Short disclaimer string |
+| `CASHFLOW_DEMO_CURRENCY_LABEL` | e.g. `USD (simulated)` |
 
-In the **frontend build** stage, `VITE_API_BASE_URL=/api` so the browser talks to the same origin and Nginx proxies to the backend.
-
-**Demo properties** (`application.yaml` / env):
-
-| Property | Typical use |
-|----------|-------------|
-| `cashflow.demo.enabled` | Master toggle for demo features |
-| `cashflow.demo.seed-on-startup` | Seed when there are no companies |
-| `cashflow.demo.presentation-mode` | UI banner + `/app/info` |
-| `cashflow.demo.disclaimer` | Short disclaimer text |
-| `cashflow.demo.currency-label` | e.g. `USD (simulated)` |
-
----
-
-## CI
-
-On push/PR to `main` or `master`:
-
-- Backend: `mvn -B test` (Java 21, Maven on Ubuntu runner)
-- Frontend: `npm ci && npm run build` in `frontend/`
+In the Docker frontend build stage `VITE_API_BASE_URL=/api` so the browser hits the same origin and Nginx proxies to the backend container.
 
 ---
 
@@ -196,7 +163,7 @@ On push/PR to `main` or `master`:
 mvn -B test
 ```
 
-Integration tests use **Testcontainers** (PostgreSQL). No local Postgres required for tests.
+Integration tests use **Testcontainers** — no local Postgres required. CI runs on push/PR to `main`: Maven test suite + frontend build.
 
 ---
 

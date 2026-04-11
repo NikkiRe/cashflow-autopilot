@@ -37,7 +37,6 @@ export function Forecast() {
       setSummary(summaryData)
     } catch (err) {
       setError('Failed to generate forecast')
-      console.error(err)
     } finally {
       setLoading(false)
     }

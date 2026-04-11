@@ -46,7 +46,6 @@ export function Transactions() {
       setTransactions(data)
     } catch (err) {
       setError('Failed to load transactions')
-      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -79,7 +78,6 @@ export function Transactions() {
       await loadTransactions()
     } catch (err) {
       setError('Failed to create transaction')
-      console.error(err)
     }
   }
 
@@ -91,7 +89,6 @@ export function Transactions() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete transaction'
       setError(msg.includes('404') || msg.includes('Not Found') ? 'Transaction not found (refresh the list)' : msg)
-      console.error(err)
     } finally {
       setDeleteId(null)
     }

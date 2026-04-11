@@ -76,7 +76,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         setSelectedCashAccountId(data[0].id)
       }
     } catch (err) {
-      console.error('Failed to load cash accounts, keeping fallback:', err)
     } finally {
       setLoading(false)
     }
@@ -94,7 +93,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       setCompanies(data)
       setSelectedCompanyId((prev) => (data.length > 0 && prev === null ? data[0].id : prev))
     } catch (err) {
-      console.error('Failed to load companies, using fallback mode:', err)
       setAppInfo(null)
       setCompanies(FALLBACK_COMPANIES)
       setCashAccounts(FALLBACK_CASH_ACCOUNTS)

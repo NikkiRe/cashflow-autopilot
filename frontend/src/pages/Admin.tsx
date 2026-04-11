@@ -54,7 +54,6 @@ export function Admin() {
           }
         }
       } catch (err) {
-        console.error('Failed to load data:', err)
       } finally {
         setLoading(false)
       }
@@ -86,7 +85,6 @@ export function Admin() {
       setFormData({})
       window.location.reload()
     } catch (err) {
-      console.error('Failed to create:', err)
       alert('Failed to create. Please try again.')
     } finally {
       setLoading(false)
@@ -116,7 +114,6 @@ export function Admin() {
       }
       window.location.reload()
     } catch (err) {
-      console.error('Failed to delete:', err)
       alert('Failed to delete. Please try again.')
     } finally {
       setLoading(false)
