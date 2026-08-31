@@ -73,6 +73,19 @@ mvn -f forecast-service/pom.xml verify
 
 Docker must be running for PostgreSQL Testcontainers. Forecast tests use an embedded Kafka broker. Tests cover the original forecast behavior, transactional rollback, concurrent account changes, demo snapshots, deletion, duplicate/older deliveries, atomic inbox updates and listener restart. GitHub Actions runs both backend suites and the frontend build.
 
+A separate E2E job builds the full Compose stack with Nginx, React, both services, Kafka and two PostgreSQL databases. The Python standard-library script sends every HTTP request through Nginx. It checks the compiled UI assets, creates an account with transactions, an invoice and an obligation, then verifies daily forecast amounts and projection revisions. It stops `forecast-service`, persists another transaction through the API, restarts the service and waits for the updated forecast. Finally, it deletes the invoice and checks that its amount disappears from the projection. Requests and polling have time limits; failed CI runs print container logs and always remove the stack and volumes.
+
+To run the same HTTP E2E scenario locally, use Python 3.12+ and a disposable Compose project. It stops and starts that project's `forecast-service`; the Compose ports must be free.
+
+```sh
+export COMPOSE_PROJECT_NAME=cashflow-e2e
+docker compose up --build --detach --wait --wait-timeout 180
+python3 scripts/e2e.py
+docker compose down --volumes --remove-orphans
+```
+
+`E2E_BASE_URL` defaults to `http://localhost:3040`. This checks the deployed HTTP flow and static UI assets; it does not drive a browser.
+
 ## Stack
 
 Java 21, Spring Boot 3.3, Spring Data JPA, Spring JDBC, PostgreSQL 16, Flyway, Kafka, JUnit, Testcontainers, React 18, TypeScript, Docker Compose.
