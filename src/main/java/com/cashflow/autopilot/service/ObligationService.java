@@ -9,6 +9,7 @@ import com.cashflow.autopilot.exception.NotFoundException;
 import com.cashflow.autopilot.repository.CashAccountRepository;
 import com.cashflow.autopilot.repository.ObligationRepository;
 import org.springframework.stereotype.Service;
+import com.cashflow.autopilot.events.AccountOutbox;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -19,17 +20,24 @@ import java.util.stream.Collectors;
 public class ObligationService {
 
     private final ObligationRepository obligationRepository;
+    private final AccountOutbox outbox;
     private final CashAccountRepository cashAccountRepository;
 
     public ObligationService(ObligationRepository obligationRepository,
-                             CashAccountRepository cashAccountRepository) {
+                             CashAccountRepository cashAccountRepository, AccountOutbox outbox) {
         this.obligationRepository = obligationRepository;
+        this.outbox = outbox;
         this.cashAccountRepository = cashAccountRepository;
     }
 
     public ObligationDTO createObligation(CreateObligationRequest request) {
+        outbox.lock(request.getCashAccountId());
         CashAccount cashAccount = cashAccountRepository.findById(request.getCashAccountId())
                 .orElseThrow(() -> new NotFoundException("Cash account not found with id: " + request.getCashAccountId()));
+
+        if (!cashAccount.getCurrency().equals(request.getCurrency())) {
+            throw new IllegalArgumentException("Currency must match cash account");
+        }
 
         Obligation obligation = new Obligation();
         obligation.setCashAccount(cashAccount);
@@ -41,6 +49,7 @@ public class ObligationService {
         obligation.setDescription(request.getDescription());
 
         Obligation saved = obligationRepository.save(obligation);
+        outbox.snapshot(request.getCashAccountId());
         return toDTO(saved);
     }
 
@@ -57,10 +66,12 @@ public class ObligationService {
     }
 
     public void deleteObligation(Long id) {
-        if (!obligationRepository.existsById(id)) {
-            throw new NotFoundException("Obligation not found with id: " + id);
-        }
+        var existing = obligationRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Obligation not found with id: " + id));
+        long accountId = existing.getCashAccount().getId();
+        outbox.lock(accountId);
         obligationRepository.deleteById(id);
+        outbox.snapshot(accountId);
     }
 
     public List<Obligation> findActiveByCashAccount(Long cashAccountId) {

@@ -13,9 +13,9 @@
     </parent>
 
     <groupId>com.cashflow</groupId>
-    <artifactId>cashflow-autopilot</artifactId>
+    <artifactId>forecast-service</artifactId>
     <version>1.0.0</version>
-    <name>Cashflow Autopilot</name>
+    <name>Cashflow Forecast</name>
     <description>Cashflow forecasting and invoice management service</description>
 
     <properties>
@@ -29,6 +29,11 @@
     <dependencies>
         <dependency>
             <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
         <dependency>
@@ -38,7 +43,7 @@
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
 
         <dependency>

@@ -1,6 +1,7 @@
 package com.cashflow.autopilot.service;
 
 import com.cashflow.autopilot.config.DemoPresentationState;
+import com.cashflow.autopilot.events.AccountOutbox;
 import com.cashflow.autopilot.config.DemoProperties;
 import com.cashflow.autopilot.domain.entity.*;
 import com.cashflow.autopilot.domain.enums.InvoiceStatus;
@@ -25,6 +26,7 @@ public class DemoDataSeedService {
     public static final String DEMO_COMPANY_NAME = "Northwind Demo Ltd";
 
     private final DemoProperties demoProperties;
+    private final AccountOutbox outbox;
     private final DemoPresentationState presentationState;
     private final CompanyRepository companyRepository;
     private final CashAccountRepository cashAccountRepository;
@@ -41,8 +43,9 @@ public class DemoDataSeedService {
             CounterpartyRepository counterpartyRepository,
             InvoiceRepository invoiceRepository,
             ObligationRepository obligationRepository,
-            BankTransactionRepository bankTransactionRepository) {
+            BankTransactionRepository bankTransactionRepository, AccountOutbox outbox) {
         this.demoProperties = demoProperties;
+        this.outbox = outbox;
         this.presentationState = presentationState;
         this.companyRepository = companyRepository;
         this.cashAccountRepository = cashAccountRepository;
@@ -92,6 +95,8 @@ public class DemoDataSeedService {
                 "Semi-monthly payroll cycle");
 
         seedBankHistory(main, today);
+        outbox.lock(main.getId());
+        outbox.snapshot(main.getId());
 
         presentationState.markSampleDatasetSeeded();
         log.info("Presentation seed complete: company id={}, main cash account id={}", company.getId(), main.getId());

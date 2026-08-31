@@ -1,3 +1,12 @@
 cashflow:
   demo:
     seed-on-startup: false
+
+  events:
+    publish-enabled: false
+spring:
+  kafka:
+    listener:
+      auto-startup: false
+    admin:
+      auto-create: false

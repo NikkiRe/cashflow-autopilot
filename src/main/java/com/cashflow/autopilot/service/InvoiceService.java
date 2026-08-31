@@ -11,6 +11,7 @@ import com.cashflow.autopilot.repository.CashAccountRepository;
 import com.cashflow.autopilot.repository.CounterpartyRepository;
 import com.cashflow.autopilot.repository.InvoiceRepository;
 import org.springframework.stereotype.Service;
+import com.cashflow.autopilot.events.AccountOutbox;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -21,18 +22,21 @@ import java.util.stream.Collectors;
 public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
+    private final AccountOutbox outbox;
     private final CashAccountRepository cashAccountRepository;
     private final CounterpartyRepository counterpartyRepository;
 
     public InvoiceService(InvoiceRepository invoiceRepository,
                           CashAccountRepository cashAccountRepository,
-                          CounterpartyRepository counterpartyRepository) {
+                          CounterpartyRepository counterpartyRepository, AccountOutbox outbox) {
         this.invoiceRepository = invoiceRepository;
+        this.outbox = outbox;
         this.cashAccountRepository = cashAccountRepository;
         this.counterpartyRepository = counterpartyRepository;
     }
 
     public InvoiceDTO createInvoice(CreateInvoiceRequest request) {
+        outbox.lock(request.getCashAccountId());
         CashAccount cashAccount = cashAccountRepository.findById(request.getCashAccountId())
                 .orElseThrow(() -> new NotFoundException("Cash account not found with id: " + request.getCashAccountId()));
 
@@ -40,6 +44,10 @@ public class InvoiceService {
         if (request.getCounterpartyId() != null) {
             counterparty = counterpartyRepository.findById(request.getCounterpartyId())
                     .orElse(null);
+        }
+
+        if (!cashAccount.getCurrency().equals(request.getCurrency())) {
+            throw new IllegalArgumentException("Currency must match cash account");
         }
 
         Invoice invoice = new Invoice();
@@ -54,6 +62,7 @@ public class InvoiceService {
         invoice.setDescription(request.getDescription());
 
         Invoice saved = invoiceRepository.save(invoice);
+        outbox.snapshot(request.getCashAccountId());
         return toDTO(saved);
     }
 
@@ -70,10 +79,12 @@ public class InvoiceService {
     }
 
     public void deleteInvoice(Long id) {
-        if (!invoiceRepository.existsById(id)) {
-            throw new NotFoundException("Invoice not found with id: " + id);
-        }
+        var existing = invoiceRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Invoice not found with id: " + id));
+        long accountId = existing.getCashAccount().getId();
+        outbox.lock(accountId);
         invoiceRepository.deleteById(id);
+        outbox.snapshot(accountId);
     }
 
     public List<Invoice> findIssuedByCashAccountAndDueDate(Long cashAccountId, java.time.LocalDate date) {

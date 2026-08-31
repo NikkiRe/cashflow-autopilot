@@ -8,6 +8,8 @@ import com.cashflow.autopilot.exception.NotFoundException;
 import com.cashflow.autopilot.repository.CashAccountRepository;
 import com.cashflow.autopilot.repository.CompanyRepository;
 import org.springframework.stereotype.Service;
+import com.cashflow.autopilot.events.AccountOutbox;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -19,11 +21,15 @@ public class CashAccountService {
 
     private final CashAccountRepository cashAccountRepository;
     private final CompanyRepository companyRepository;
+    private final AccountOutbox outbox;
+    private final JdbcTemplate jdbc;
 
     public CashAccountService(CashAccountRepository cashAccountRepository,
-                              CompanyRepository companyRepository) {
+                              CompanyRepository companyRepository, AccountOutbox outbox, JdbcTemplate jdbc) {
         this.cashAccountRepository = cashAccountRepository;
         this.companyRepository = companyRepository;
+        this.outbox = outbox;
+        this.jdbc = jdbc;
     }
 
     public CashAccountDTO createCashAccount(CreateCashAccountRequest request) {
@@ -36,6 +42,8 @@ public class CashAccountService {
         account.setAccountNumber(request.getAccountNumber());
         account.setCurrency(request.getCurrency());
         CashAccount saved = cashAccountRepository.save(account);
+        outbox.lock(saved.getId());
+        outbox.snapshot(saved.getId());
         return toDTO(saved);
     }
 
@@ -55,7 +63,12 @@ public class CashAccountService {
         if (!cashAccountRepository.existsById(id)) {
             throw new NotFoundException("Cash account not found with id: " + id);
         }
+        outbox.lock(id);
+        jdbc.update("DELETE FROM invoices WHERE cash_account_id = ?", id);
+        jdbc.update("DELETE FROM obligations WHERE cash_account_id = ?", id);
+        jdbc.update("DELETE FROM bank_transactions WHERE cash_account_id = ?", id);
         cashAccountRepository.deleteById(id);
+        outbox.deleted(id);
     }
 
     public CashAccount getCashAccountEntity(Long id) {

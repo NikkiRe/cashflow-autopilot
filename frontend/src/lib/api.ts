@@ -17,7 +17,7 @@ import type {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 class ApiClient {
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}, retries = 0): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`
     const hasJsonBody =
       options.body != null && typeof options.body === 'string'
@@ -32,6 +32,13 @@ class ApiClient {
     try {
       const response = await fetch(url, config)
       const text = await response.text()
+
+      if (response.status === 503 && response.headers.has('Retry-After') && retries < 3 &&
+          (!options.method || options.method === 'GET')) {
+        const seconds = Number(response.headers.get('Retry-After')) || 1
+        await new Promise((resolve) => setTimeout(resolve, Math.min(Math.max(seconds, 1), 3) * 1000))
+        return this.request<T>(endpoint, options, retries + 1)
+      }
 
       if (!response.ok) {
         let message = `HTTP ${response.status}`

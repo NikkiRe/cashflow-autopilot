@@ -9,6 +9,7 @@ import com.cashflow.autopilot.exception.NotFoundException;
 import com.cashflow.autopilot.repository.BankTransactionRepository;
 import com.cashflow.autopilot.repository.CashAccountRepository;
 import org.springframework.stereotype.Service;
+import com.cashflow.autopilot.events.AccountOutbox;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -21,17 +22,24 @@ import java.util.stream.Collectors;
 public class BankTransactionService {
 
     private final BankTransactionRepository transactionRepository;
+    private final AccountOutbox outbox;
     private final CashAccountRepository cashAccountRepository;
 
     public BankTransactionService(BankTransactionRepository transactionRepository,
-                                  CashAccountRepository cashAccountRepository) {
+                                  CashAccountRepository cashAccountRepository, AccountOutbox outbox) {
         this.transactionRepository = transactionRepository;
+        this.outbox = outbox;
         this.cashAccountRepository = cashAccountRepository;
     }
 
     public BankTransactionDTO createTransaction(CreateBankTransactionRequest request) {
+        outbox.lock(request.getCashAccountId());
         CashAccount cashAccount = cashAccountRepository.findById(request.getCashAccountId())
                 .orElseThrow(() -> new NotFoundException("Cash account not found with id: " + request.getCashAccountId()));
+
+        if (!cashAccount.getCurrency().equals(request.getCurrency())) {
+            throw new IllegalArgumentException("Currency must match cash account");
+        }
 
         BankTransaction transaction = new BankTransaction();
         transaction.setCashAccount(cashAccount);
@@ -43,6 +51,7 @@ public class BankTransactionService {
         transaction.setReferenceNumber(request.getReferenceNumber());
 
         BankTransaction saved = transactionRepository.save(transaction);
+        outbox.snapshot(request.getCashAccountId());
         return toDTO(saved);
     }
 
@@ -59,10 +68,12 @@ public class BankTransactionService {
     }
 
     public void deleteTransaction(Long id) {
-        if (!transactionRepository.existsById(id)) {
-            throw new NotFoundException("Transaction not found with id: " + id);
-        }
+        var existing = transactionRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Transaction not found with id: " + id));
+        long accountId = existing.getCashAccount().getId();
+        outbox.lock(accountId);
         transactionRepository.deleteById(id);
+        outbox.snapshot(accountId);
     }
 
     public BigDecimal calculateBalanceBefore(Long cashAccountId, LocalDate date) {

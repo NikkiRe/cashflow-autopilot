@@ -1,174 +1,80 @@
-![2026-04-1200 59 22-ezgif com-video-to-gif-converter-2](https://github.com/user-attachments/assets/7a9cfa2f-5973-437d-b7e5-c431823b6ee6)
-
-<div align="center">
-
 # Cashflow Autopilot
 
-**Liquidity forecasting and cash visibility for finance and ops teams.**
+Cashflow planning for a small business: invoices, recurring expenses, bank history and a daily balance forecast. The sample dataset uses simulated money.
 
-Daily cash balance projection, receivables, recurring obligations, and a focused UI built for decisions — demo-ready with synthetic data, no payment rails.
+## Services
 
-[![Java](https://img.shields.io/badge/Java-21-orange?style=flat-square&logo=openjdk)](https://openjdk.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3-brightgreen?style=flat-square&logo=spring)](https://spring.io/projects/spring-boot)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)](https://docs.docker.com/compose/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+- `backend`: Java 21 / Spring Boot API. Owns companies, accounts, invoices, obligations and transactions in PostgreSQL.
+- `forecast-service`: consumes account snapshots from Kafka, stores its own PostgreSQL projection and calculates forecasts. It has no connection to the source database.
+- `frontend`: React / TypeScript dashboard, served by Nginx.
 
-</div>
+A business change and its outbox event are committed in one database transaction. Changes to the same account take a revision lock before modifying data. The publisher sends committed events to `cashflow.account-snapshots.v1`, keyed by account ID, then marks them as published. If it crashes between those steps, the event is sent again.
 
----
+The consumer commits the inbox entry and projection together, before Kafka acknowledges the record. Event IDs handle duplicates; revisions reject older snapshots. Deleting an account emits a retained snapshot with `deleted=true`, so replay cannot restore deleted data. Deleting an invoice, transaction or obligation emits a new snapshot without that item.
 
-## Features
+The publisher takes a PostgreSQL transaction advisory lock. Only one publisher drains the outbox at a time, including when multiple API instances run. This preserves publication order for the compacted topic. API writes remain concurrent across accounts.
 
-- **Forecast** — daily projected balance derived from invoices, obligations, and ledger history
-- **Dashboard** — summary KPIs, 30-day chart, upcoming receivables and payables
-- **Invoices & obligations** — full CRUD over REST with status tracking
-- **Bank transactions** — list, create, delete
-- **Scenarios & factoring** — additional modelling screens
-- **Landing page** — scroll-driven marketing page at `/intro` with GSAP ScrollTrigger: sticky hero, card overlay, character reveal, neon chart split into 3D flip cards
-- **Demo mode** — synthetic seed dataset on empty DB; browser-only fallback when API is unreachable
+## Run
 
----
+Requires Docker with Compose v2.
 
-## Stack
-
-| Layer    | Technology |
-|----------|------------|
-| Backend  | Java 21, Spring Boot 3.3, Spring Data JPA, SpringDoc OpenAPI |
-| Database | PostgreSQL 16, Flyway |
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS, GSAP, Recharts, Radix UI |
-| Runtime  | Docker Compose, Nginx (static UI + `/api` proxy) |
-
----
-
-## Quick start
-
-**Requires:** Docker with Compose v2.
-
-```bash
-git clone <repo-url>
-cd Backend_Project
+```sh
 docker compose up --build
 ```
 
-| Service | URL |
-|---------|-----|
-| Landing | http://localhost:3040/intro |
-| App | http://localhost:3040 |
-| API | http://localhost:8090/api |
-| Swagger UI | http://localhost:8090/swagger-ui.html |
-| PostgreSQL | `localhost:5432` · db `cashflow` · user `cashflow` |
+Open the [app](http://localhost:3040), [landing page](http://localhost:3040/intro) or [Swagger UI](http://localhost:8090/swagger-ui.html). The public API remains at `http://localhost:8090/api`. Forecast requests are forwarded to the separate service.
 
-First build downloads Maven and npm dependencies — subsequent starts are fast.
+PostgreSQL runs on ports 5432 and 5433, with separate databases and credentials for each service. Kafka runs on port 9092. These credentials and the single Kafka broker are for local development.
 
-On an empty database with demo seed enabled, the app creates **Northwind Demo Ltd** with a USD operating account, sample invoices, obligations, and transaction history. All figures are simulated.
+The demo seed is written once when the source database is empty. It creates an initial outbox snapshot after all invoices, expenses and bank transactions have been inserted. On an existing database, accounts without a revision are snapshotted on startup.
 
----
+## Consistency and replay
+
+The forecast is eventually consistent. A successful write does not wait for Kafka or the projection. A new account can briefly return HTTP 503 with `Retry-After: 1` from the forecast endpoint while its first snapshot arrives. Existing accounts can briefly show the previous forecast. Responses include `X-Projection-Revision`.
+
+Snapshots include all forecast inputs for one account. This keeps replay and deletion straightforward but is intended for the sample dataset, not unbounded bank history. The default Kafka message limit is about 1 MB. A larger deployment would need incremental events and a separate snapshot/bootstrap mechanism.
+
+The topic uses compaction. The last snapshot for each account, including deletion markers, remains available; consumers must start with `auto-offset-reset=earliest`. To rebuild an empty projection database, set a fresh `KAFKA_GROUP_ID` so existing consumer offsets are not reused. Both database and broker data use named Docker volumes.
+
+If Kafka storage is lost, stop the API, reset `published_at` to `NULL` in `account_outbox`, then restart it. Events are replayed in outbox order. Published outbox rows are deliberately retained in this demo. Permanent listener failures retry without advancing that partition; inspect forecast-service logs and fix the event or deployment before resuming.
+
+Forecast assumptions match the original application: overdue invoices are included on the first day, issued invoices on their due date, and monthly obligations clamp to the last day of a shorter month. This is a planning model, not a payment processor. Forecast horizons are limited to 1 through 366 days; new financial items must use the account currency. Scenarios and factoring screens remain browser-side demonstrations.
 
 ## Local development
 
-### Backend
+Requires JDK 21, Maven and Node.js 20+.
 
-Requires **Java 21** and **Maven**.
-
-```bash
-docker compose up postgres -d
-
-mvn -B spring-boot:run
-# API      → http://localhost:8060/api
-# Swagger  → http://localhost:8060/swagger-ui.html
+```sh
+docker compose up -d postgres forecast-db kafka
+mvn spring-boot:run
 ```
 
-### Frontend
+In another terminal:
 
-Requires **Node.js 20+**.
+```sh
+cd forecast-service
+mvn spring-boot:run
+```
 
-```bash
+For the UI:
+
+```sh
 cd frontend
 npm ci
-npm run dev       # http://localhost:3030  (Vite proxies /api → :8060)
-npm run build     # production build
+npm run dev
 ```
-
----
-
-## API reference
-
-Base path: `/api`. Request/response shapes are in [`frontend/src/types/backend.ts`](frontend/src/types/backend.ts).
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/app/info` | Demo / presentation flags |
-| GET | `/companies` | List companies |
-| POST | `/companies` | Create company |
-| DELETE | `/companies/{id}` | Delete company |
-| GET | `/cash-accounts/company/{companyId}` | Accounts for company |
-| POST | `/cash-accounts` | Create account |
-| DELETE | `/cash-accounts/{id}` | Delete account |
-| GET | `/invoices/cash-account/{id}` | Invoices |
-| POST | `/invoices` | Create invoice |
-| DELETE | `/invoices/{id}` | Delete invoice |
-| GET | `/obligations/cash-account/{id}` | Obligations |
-| POST | `/obligations` | Create obligation |
-| DELETE | `/obligations/{id}` | Delete obligation |
-| GET | `/bank-transactions/cash-account/{id}` | Transactions |
-| POST | `/bank-transactions` | Create transaction |
-| DELETE | `/bank-transactions/{id}` | Delete transaction |
-| GET | `/forecast` | Params: `cashAccountId`, `startDate`, `days` |
-| GET | `/dashboard/summary` | Same params as forecast |
-
----
-
-## Repository layout
-
-```
-Backend_Project/
-├── src/main/java/com/cashflow/autopilot/   # controllers, services, domain, dto
-├── src/main/resources/
-│   ├── application.yaml
-│   └── db/migration/                       # Flyway migrations
-├── src/test/                               # JUnit + Testcontainers
-├── frontend/
-│   ├── src/
-│   │   ├── pages/                          # Dashboard, Forecast, Invoices, LandingPage …
-│   │   ├── components/                     # layout + UI primitives
-│   │   ├── contexts/                       # AccountContext
-│   │   └── types/                          # backend.ts — shared DTO shapes
-│   ├── Dockerfile
-│   └── nginx.conf
-├── Dockerfile
-├── docker-compose.yml
-└── pom.xml
-```
-
----
-
-## Configuration
-
-| Variable | Role |
-|----------|------|
-| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | JDBC connection |
-| `CASHFLOW_DEMO_ENABLED` | Master demo toggle |
-| `CASHFLOW_DEMO_SEED_ON_STARTUP` | Seed when no companies exist |
-| `CASHFLOW_DEMO_PRESENTATION_MODE` | UI banner + `/app/info` response |
-| `CASHFLOW_DEMO_DISCLAIMER` | Short disclaimer string |
-| `CASHFLOW_DEMO_CURRENCY_LABEL` | e.g. `USD (simulated)` |
-
-In the Docker frontend build stage `VITE_API_BASE_URL=/api` so the browser hits the same origin and Nginx proxies to the backend container.
-
----
 
 ## Tests
 
-```bash
-mvn -B test
+```sh
+mvn verify
+mvn -f forecast-service/pom.xml verify
 ```
 
-Integration tests use **Testcontainers** — no local Postgres required. CI runs on push/PR to `main`: Maven test suite + frontend build.
+Docker must be running for PostgreSQL Testcontainers. Forecast tests use an embedded Kafka broker. Tests cover the original forecast behavior, transactional rollback, concurrent account changes, demo snapshots, deletion, duplicate/older deliveries, atomic inbox updates and listener restart. GitHub Actions runs both backend suites and the frontend build.
 
----
+## Stack
 
-## License
+Java 21, Spring Boot 3.3, Spring Data JPA, Spring JDBC, PostgreSQL 16, Flyway, Kafka, JUnit, Testcontainers, React 18, TypeScript, Docker Compose.
 
-MIT — see [LICENSE](LICENSE).
+MIT license.
